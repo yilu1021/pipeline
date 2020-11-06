@@ -218,12 +218,11 @@ type Reconciler interface {
 	Reconcile(ctx context.Context, clusterID uint, config Config, values []byte) error
 }
 
-// reconciler componet struct in charge for assembling the CR manifest  and applying it to a cluster (by delegating to a cluster client)
+// reconciler components struct in charge for assembling the CR manifest  and applying it to a cluster (by delegating to a cluster client)
 type reconciler struct {
 }
 
 func (r reconciler) Reconcile(ctx context.Context, clusterID uint, config Config, values []byte) error {
-
 	// TODO assemble the CR instance based on the spec, config and values
 	// TODO use a k8s client instance to apply the resource to the cluster
 
