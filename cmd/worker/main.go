@@ -703,7 +703,7 @@ func main() {
 				),
 			})
 
-			registerClusterFeatureWorkflows(worker, featureOperatorRegistry, featureRepository)
+			registerClusterFeatureWorkflows(worker, featureOperatorRegistry, featureRepository, config.IntegratedService.V2)
 		}
 
 		group.Add(appkitrun.CadenceWorkerRun(worker))
