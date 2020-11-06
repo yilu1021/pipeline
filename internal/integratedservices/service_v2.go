@@ -24,13 +24,45 @@ import (
 
 // ISServiceV2 integrated service service implementation - V2
 type ISServiceV2 struct {
-	logger common.Logger
+	managerRegistry IntegratedServiceManagerRegistry
+	dispatcher      IntegratedServiceOperationDispatcher
+	logger          common.Logger
 }
 
-func NewISServiceV2(logger common.Logger) *ISServiceV2 {
+// NewISServiceV2 creates a new service instance using the provided collaborators
+func NewISServiceV2(
+	integratedServiceManagerRegistry IntegratedServiceManagerRegistry,
+	integratedServiceOperationDispatcher IntegratedServiceOperationDispatcher,
+	logger common.Logger,
+) *ISServiceV2 {
 	return &ISServiceV2{
-		logger: logger,
+		managerRegistry: integratedServiceManagerRegistry,
+		dispatcher:      integratedServiceOperationDispatcher,
+		logger:          logger,
 	}
+}
+
+// Activate initiates the activation of an integrated service
+func (i ISServiceV2) Activate(ctx context.Context, clusterID uint, serviceName string, spec map[string]interface{}) error {
+	manager, err := i.managerRegistry.GetIntegratedServiceManager(serviceName)
+	if err != nil {
+		return errors.WrapIf(err, "unsupported integrated service")
+	}
+
+	if err := manager.ValidateSpec(ctx, spec); err != nil {
+		return InvalidIntegratedServiceSpecError{IntegratedServiceName: serviceName, Problem: err.Error()}
+	}
+
+	preparedSpec, err := manager.PrepareSpec(ctx, clusterID, spec)
+	if err != nil {
+		return errors.WrapIf(err, "failed to prepare the integrated service specification")
+	}
+
+	if err := i.dispatcher.DispatchApply(ctx, clusterID, serviceName, preparedSpec); err != nil {
+		return errors.WrapIfWithDetails(err, "failed to dispatch the apply operation", "clusterID", clusterID, "integrated service", serviceName)
+	}
+
+	return nil
 }
 
 func (i ISServiceV2) List(ctx context.Context, clusterID uint) ([]IntegratedService, error) {
@@ -41,11 +73,6 @@ func (i ISServiceV2) List(ctx context.Context, clusterID uint) ([]IntegratedServ
 func (i ISServiceV2) Details(ctx context.Context, clusterID uint, serviceName string) (IntegratedService, error) {
 	// TODO implement me!
 	return IntegratedService{}, errors.NewWithDetails("Operation not, yet implemented!", "clusterID", clusterID)
-}
-
-func (i ISServiceV2) Activate(ctx context.Context, clusterID uint, serviceName string, spec map[string]interface{}) error {
-	// TODO implement me!
-	return errors.NewWithDetails("Operation not, yet implemented!", "clusterID", clusterID)
 }
 
 func (i ISServiceV2) Deactivate(ctx context.Context, clusterID uint, serviceName string) error {
