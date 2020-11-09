@@ -54,7 +54,7 @@ Parameters:
   CustomSecurityGroup:
     Type: String
     Default: "NONE"
-    Description: Cusotm security group for all nodes in the cluster.
+    Description: Custom security group for all nodes in the cluster.
 
   KeyName:
     Type: String
@@ -68,7 +68,7 @@ Parameters:
   NodeAutoScalingGroupMaxBatchSize:
     Type: Number
     Default: 2
-    Description: Minimum size of Node Group ASG.
+    Description: Maximum number of nodes to be updated at once during a rolling update.
 
   NodeAutoScalingGroupMaxSize:
     Type: Number
