@@ -55,7 +55,7 @@ func NewDNSISOperator(
 		orgDomainService: orgDomainService,
 		secretStore:      secretStore,
 		config:           config,
-		reconciler:       reconciler{},
+		reconciler:       NewISReconciler(), // TODO inject this?
 		logger:           logger,
 	}
 }
@@ -94,7 +94,17 @@ func (o Operator) Apply(ctx context.Context, clusterID uint, spec integratedserv
 		return errors.WrapIf(err, "failed to get chart values")
 	}
 
-	if rErr := o.reconciler.Reconcile(ctx, clusterID, o.config, chartValues); err != nil {
+	cl, err := o.clusterGetter.GetClusterByIDOnly(ctx, clusterID)
+	if err != nil {
+		return errors.WrapIf(err, "failed to retrieve the cluster")
+	}
+
+	k8sConfig, err := cl.GetK8sConfig()
+	if err != nil {
+		return errors.WrapIf(err, "failed to retrieve the k8s config")
+	}
+
+	if rErr := o.reconciler.Reconcile(ctx, k8sConfig, o.config, chartValues, nil); err != nil {
 		return errors.Wrap(rErr, "failed to reconcile the integrated service resource")
 	}
 

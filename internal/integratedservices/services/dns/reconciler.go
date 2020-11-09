@@ -19,22 +19,69 @@ import (
 
 	"emperror.dev/errors"
 	"github.com/banzaicloud/operator-tools/pkg/reconciler"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/clientcmd"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+
+	"github.com/banzaicloud/integrated-service-sdk/api/v1alpha1"
+	"github.com/banzaicloud/pipeline/internal/integratedservices"
 )
 
 // Reconciler decouples creation of kubernetes resources (IS Cr-s
 type Reconciler interface {
-	// TODO finalize the interface
 	// Reconcile creates and applies CRs to a cluster
-	Reconcile(ctx context.Context, clusterID uint, config Config, values []byte) error
+	Reconcile(ctx context.Context, kubeConfig []byte, config Config, values []byte, spec integratedservices.IntegratedServiceSpec) error
 }
 
-// reconciler components struct in charge for assembling the CR manifest  and applying it to a cluster (by delegating to a cluster client)
-type isReconciler struct {
-	reconciler reconciler.ResourceReconciler
+// isvcReconciler components struct in charge for assembling the CR manifest  and applying it to a cluster (by delegating to a cluster client)
+type isvcReconciler struct {
+	scheme *runtime.Scheme
 }
 
-func (is isReconciler) Reconcile(ctx context.Context, clusterID uint, config Config, values []byte) error {
-	is.reconciler.CreateIfNotExist()
+// NewISReconciler builds an integrated service reconciler
+func NewISReconciler() Reconciler {
+	// register needed shemes
+	scheme := runtime.NewScheme()
+	_ = clientgoscheme.AddToScheme(scheme)
+	_ = v1alpha1.AddToScheme(scheme)
+	return isvcReconciler{
+		scheme: scheme,
+	}
+}
 
-	return errors.NewWithDetails("not yet implemented!")
+func (is isvcReconciler) Reconcile(ctx context.Context, kubeConfig []byte, config Config, values []byte, spec integratedservices.IntegratedServiceSpec) error {
+	si := &v1alpha1.ServiceInstance{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "default",
+			Name:      "external-dns",
+		},
+		Spec: v1alpha1.ServiceInstanceSpec{
+			Service: IntegratedServiceName,
+			Version: "",             // TODO comes from the spec?!
+			Enabled: nil,            // TODO comes from the spec?!
+			Config:  string(values), // TODO to be verifies
+		},
+	}
+	restCfg, err := clientcmd.RESTConfigFromKubeConfig(kubeConfig)
+	if err != nil {
+		return errors.Wrap(err, "failed to create rest config from cluster configuration")
+	}
+
+	cli, err := client.New(restCfg, client.Options{
+		Scheme: is.scheme,
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to create the client from rest configuration")
+	}
+
+	resourceReconciler := reconciler.NewReconcilerWith(cli)
+	_, err = resourceReconciler.ReconcileResource(si, reconciler.StateCreated)
+	if err != nil {
+		return errors.Wrap(err, "failed to reconcile the service instance resource")
+	}
+
+	return nil
 }
