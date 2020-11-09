@@ -58,7 +58,7 @@ Parameters:
     Description: Custom security group for all nodes in the cluster.
 
   KeyName:
-    Type: String
+    Type: "AWS::EC2::KeyPair::KeyName"
     Description: The EC2 Key Pair to allow SSH access to the instances
 
   # NodeAutoScalingGroupDesiredCapacity:
