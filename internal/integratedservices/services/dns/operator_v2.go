@@ -210,21 +210,3 @@ func (o Operator) ensureOrgIDInContext(ctx context.Context, clusterID uint) (con
 	}
 	return ctx, nil
 }
-
-// Reconciler decouples creation of kubernetes resources (IS Cr-s
-type Reconciler interface {
-	// TODO finalize the interface
-	// Reconcile creates and applies CRs to a cluster
-	Reconcile(ctx context.Context, clusterID uint, config Config, values []byte) error
-}
-
-// reconciler components struct in charge for assembling the CR manifest  and applying it to a cluster (by delegating to a cluster client)
-type reconciler struct {
-}
-
-func (r reconciler) Reconcile(ctx context.Context, clusterID uint, config Config, values []byte) error {
-	// TODO assemble the CR instance based on the spec, config and values
-	// TODO use a k8s client instance to apply the resource to the cluster
-
-	return errors.NewWithDetails("not yet implemented!")
-}

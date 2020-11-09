@@ -109,9 +109,7 @@ func IntegratedServiceJobWorkflowV2(ctx workflow.Context, input IntegratedServic
 
 	switch op := signalInput.Operation; op {
 	case OperationApply:
-		if err := setIntegratedServiceStatus(ctx, input, integratedservices.IntegratedServiceStatusActive); err != nil {
-			return err
-		}
+		// todo revisit this: do nothing / success flow
 	case OperationDeactivate:
 		if err := deleteIntegratedService(ctx, input); err != nil {
 			return err
