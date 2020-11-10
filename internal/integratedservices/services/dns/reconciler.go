@@ -61,20 +61,17 @@ func (is isvcReconciler) Reconcile(ctx context.Context, kubeConfig []byte, confi
 			Name:      "external-dns",
 		},
 		Spec: v1alpha1.ServiceInstanceSpec{
-			Service: IntegratedServiceName,
-			Version: "",             // TODO comes from the spec?!
-			Enabled: nil,            // TODO comes from the spec?!
-			Config:  string(values), // TODO to be verifies
+			Service: "external-dns",
+			Config:  string(values), // TODO to be verified (is it properly encoded)
 		},
 	}
+
 	restCfg, err := clientcmd.RESTConfigFromKubeConfig(kubeConfig)
 	if err != nil {
 		return errors.Wrap(err, "failed to create rest config from cluster configuration")
 	}
 
-	cli, err := client.New(restCfg, client.Options{
-		Scheme: is.scheme,
-	})
+	cli, err := client.New(restCfg, client.Options{Scheme: is.scheme})
 	if err != nil {
 		return errors.Wrap(err, "failed to create the client from rest configuration")
 	}
@@ -108,6 +105,9 @@ func (is isvcReconciler) Reconcile(ctx context.Context, kubeConfig []byte, confi
 	// at this point we have the CR created and retrieved
 	if lookupSI.Spec.Enabled == nil {
 		si.Spec.Enabled = utils.BoolPointer(true)
+		// TODO the latest version is wired here
+		idx := len(lookupSI.Status.AvailableVersions)
+		si.Spec.Version = lookupSI.Status.AvailableVersions[idx-1]
 	}
 
 	// TODO should we care of disabled services here? (lookupIS.Spec.Enabled == false case)
