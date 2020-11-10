@@ -16,10 +16,13 @@ package dns
 
 import (
 	"context"
+	"reflect"
 
 	"emperror.dev/errors"
 	"github.com/banzaicloud/integrated-service-sdk/api/v1alpha1"
 	"github.com/banzaicloud/operator-tools/pkg/reconciler"
+	"github.com/banzaicloud/operator-tools/pkg/utils"
+	errors2 "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -76,10 +79,40 @@ func (is isvcReconciler) Reconcile(ctx context.Context, kubeConfig []byte, confi
 		return errors.Wrap(err, "failed to create the client from rest configuration")
 	}
 
+	key, okErr := client.ObjectKeyFromObject(si)
+	if okErr != nil {
+		return errors.Wrap(err, "failed to get object key for lookup")
+	}
+	lookupSI := &v1alpha1.ServiceInstance{}
+	if err := cli.Get(ctx, key, lookupSI); err != nil {
+		if !errors2.IsNotFound(err) {
+			return errors.Wrap(err, "failed to look up service instance")
+		}
+	}
+
 	resourceReconciler := reconciler.NewReconcilerWith(cli)
-	_, err = resourceReconciler.ReconcileResource(si, reconciler.StateCreated)
-	if err != nil {
-		return errors.Wrap(err, "failed to reconcile the service instance resource")
+	if reflect.DeepEqual(lookupSI, &v1alpha1.ServiceInstance{}) {
+		// the service instance is not found, should be created
+		_, _, err := resourceReconciler.CreateIfNotExist(si, reconciler.StateCreated)
+		if err != nil {
+			return errors.Wrap(err, "failed to create the service instance resource")
+		}
+
+		// retrieve the newly created CR
+		// TODO is it possible to "cast" the result of the above call?
+		if err := cli.Get(ctx, key, lookupSI); err != nil {
+			return errors.Wrap(err, "failed to look up service instance")
+		}
+	}
+
+	// at this point we have the CR created and retrieved
+	if lookupSI.Spec.Enabled == nil {
+		si.Spec.Enabled = utils.BoolPointer(true)
+	}
+
+	// TODO should we care of disabled services here? (lookupIS.Spec.Enabled == false case)
+	if _, err := resourceReconciler.ReconcileResource(si, reconciler.StatePresent); err != nil {
+		return errors.Wrap(err, "failed to reconcile the integrated service")
 	}
 
 	return nil
