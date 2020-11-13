@@ -5396,6 +5396,8 @@ components:
                         #         $ref: '#/components/schemas/CreateUpdateOKEProperties'
                         #     -
                         #         $ref: '#/components/schemas/UpdateACKProperties'
+                        #     -
+                        #         $ref: '#/components/schemas/UpdatePKEProperties'
                     example:
                         google:
                             master:
@@ -5569,6 +5571,13 @@ components:
                         type: string
                         example:
                             example.io/label1: value1
+                volumeSize:
+                    description: Size of the EBS volume in GBs of the nodes in the pool.
+                    example: 50
+                    type: integer
+                imageId:
+                    type: string
+                    example: "ami-06d1667f"
 
         ListEndpointsResponse:
             type: object

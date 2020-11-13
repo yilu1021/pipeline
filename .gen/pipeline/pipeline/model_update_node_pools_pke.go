@@ -35,4 +35,9 @@ type UpdateNodePoolsPke struct {
 
 	// user provided custom node labels to be placed onto the nodes of the node pool
 	Labels map[string]string `json:"labels,omitempty"`
+
+	// Size of the EBS volume in GBs of the nodes in the pool.
+	VolumeSize int32 `json:"volumeSize,omitempty"`
+
+	ImageId string `json:"imageId,omitempty"`
 }

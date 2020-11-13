@@ -19682,6 +19682,13 @@ components:
           description: user provided custom node labels to be placed onto the nodes
             of the node pool
           type: object
+        volumeSize:
+          description: Size of the EBS volume in GBs of the nodes in the pool.
+          example: 50
+          type: integer
+        imageId:
+          example: ami-06d1667f
+          type: string
       type: object
     ListEndpointsResponse:
       example:
