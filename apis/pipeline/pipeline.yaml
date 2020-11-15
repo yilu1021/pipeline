@@ -4656,6 +4656,12 @@ components:
                         subnetId:
                             type: string
                             example: "subnet-xxxxxxxxxxxxxx"
+                        nodeSecurityGroups:
+                            description: List of additional custom security groups for all nodes in the pool.
+                            type: array
+                            items:
+                                type: string
+                            example: ["sg-00000xxxx0000xxx1", "sg-00000xxxx0000xxx2"]
 
         UpdateNodePoolRequest:
             oneOf:
@@ -4741,6 +4747,12 @@ components:
                             description: The upper limit price for the requested spot instance. If this field is empty or 0 on-demand instances are used instead of spot instances.
                             type: string
                             example: "0.2"
+                        nodeSecurityGroups:
+                            description: List of additional custom security groups for all nodes in the pool.
+                            type: array
+                            items:
+                                type: string
+                            example: ["sg-00000xxxx0000xxx1", "sg-00000xxxx0000xxx2"]
                         options:
                             $ref: '#/components/schemas/BaseUpdateNodePoolOptions'
 
@@ -4850,6 +4862,12 @@ components:
                     example: "ami-06d1667f"
                 subnet:
                     $ref: '#/components/schemas/EKSSubnet'
+                nodeSecurityGroups:
+                    description: List of additional custom security groups for all nodes in the pool.
+                    type: array
+                    items:
+                        type: string
+                    example: ["sg-00000xxxx0000xxx1", "sg-00000xxxx0000xxx2"]
 
         CreateEKSProperties:
             type: object

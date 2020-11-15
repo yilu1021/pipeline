@@ -38,6 +38,9 @@ type NodePoolSummary struct {
 
 	SubnetId string `json:"subnetId,omitempty"`
 
+	// List of additional custom security groups for all nodes in the pool.
+	NodeSecurityGroups []string `json:"nodeSecurityGroups,omitempty"`
+
 	// Current status of the node pool.
 	Status string `json:"status,omitempty"`
 
