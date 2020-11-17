@@ -31,7 +31,6 @@ import (
 	"github.com/gorilla/sessions"
 	"github.com/jinzhu/gorm"
 	"github.com/qor/auth"
-	"github.com/qor/auth/auth_identity"
 	"github.com/qor/auth/claims"
 	"github.com/qor/session"
 	"github.com/qor/session/gorilla"
@@ -382,7 +381,7 @@ func (h *banzaiDeregisterHandler) handler(context *auth.Context) {
 		return
 	}
 
-	authIdentity := &AuthIdentity{Basic: auth_identity.Basic{UserID: user.IDString()}}
+	authIdentity := &AuthIdentity{BasicIdentity: BasicIdentity{UserID: user.IDString()}}
 	if err := db.Delete(authIdentity).Error; err != nil {
 		errorHandler.Handle(errors.Wrap(err, "failed delete user's auth_identity from DB"))
 		http.Error(context.Writer, err.Error(), http.StatusInternalServerError)

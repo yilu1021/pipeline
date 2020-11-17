@@ -28,31 +28,60 @@ import (
 	"github.com/jinzhu/copier"
 	"github.com/jinzhu/gorm"
 	"github.com/qor/auth"
-	"github.com/qor/auth/auth_identity"
-	"github.com/qor/qor/utils"
+	"github.com/qor/auth/claims"
+	"gopkg.in/square/go-jose.v2/jwt"
 
 	"github.com/banzaicloud/pipeline/internal/global"
 )
 
 const (
 	// CurrentOrganization current organization key
-	CurrentOrganization utils.ContextKey = "org"
+	CurrentOrganization string = "org"
 
-	currentOrganizationID utils.ContextKey = "orgID"
+	currentOrganizationID string = "orgID"
+
+	CurrentUser = "current_user"
 
 	// SignUp is present if the current request is a signing up
-	SignUp utils.ContextKey = "signUp"
+	SignUp string = "signUp"
 
 	// OAuthRefreshTokenID denotes the tokenID for the user's OAuth refresh token, there can be only one
 	OAuthRefreshTokenID = "oauth_refresh"
 )
 
+// ErrInvalidAccount invalid account error
+var ErrInvalidAccount = errors.New("invalid account")
+
+// Claims auth claims
+type Claims struct {
+	Provider                         string         `json:"provider,omitempty"`
+	UserID                           string         `json:"userid,omitempty"`
+	LastLoginAt                      *time.Time     `json:"last_login,omitempty"`
+	LastActiveAt                     *time.Time     `json:"last_active,omitempty"`
+	LongestDistractionSinceLastLogin *time.Duration `json:"distraction_time,omitempty"`
+	jwt.Claims
+}
+
+// ToClaims implement ClaimerInterface
+func (claims *Claims) ToClaims() *Claims {
+	return claims
+}
+
 // AuthIdentity auth identity session model
 type AuthIdentity struct {
-	ID        uint      `gorm:"primary_key" json:"id"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
-	auth_identity.Basic
+	ID        uint       `gorm:"primary_key" json:"id"`
+	CreatedAt time.Time  `json:"createdAt"`
+	UpdatedAt time.Time  `json:"updatedAt"`
+	DeletedAt *time.Time `sql:"index"`
+	BasicIdentity
+}
+
+type BasicIdentity struct {
+	Provider          string // phone, email, wechat, github...
+	UID               string `gorm:"column:uid"`
+	EncryptedPassword string
+	UserID            string
+	ConfirmedAt       *time.Time
 }
 
 // User struct
@@ -68,21 +97,6 @@ type User struct {
 	Virtual        bool           `json:"-" gorm:"-"` // Used only internally
 	APIToken       string         `json:"-" gorm:"-"` // Used only internally
 	ServiceAccount bool           `json:"-" gorm:"-"` // Used only internally
-}
-
-// CICDUser struct
-type CICDUser struct {
-	ID     int64  `gorm:"column:user_id;primary_key"`
-	Login  string `gorm:"column:user_login"`
-	Token  string `gorm:"column:user_token"`
-	Secret string `gorm:"column:user_secret"`
-	Expiry int64  `gorm:"column:user_expiry"`
-	Email  string `gorm:"column:user_email"`
-	Image  string `gorm:"column:user_avatar"`
-	Active bool   `gorm:"column:user_active"`
-	Admin  bool   `gorm:"column:user_admin"`
-	Hash   string `gorm:"column:user_hash"`
-	Synced int64  `gorm:"column:user_synced"`
 }
 
 // UserOrganization describes a user organization membership.
@@ -101,15 +115,10 @@ func (user *User) IDString() string {
 	return fmt.Sprint(user.ID)
 }
 
-// TableName sets CICDUser's table name
-func (CICDUser) TableName() string {
-	return "users"
-}
-
 type UserExtractor struct{}
 
 func (e UserExtractor) GetUserID(ctx context.Context) (uint, bool) {
-	if user, ok := ctx.Value(auth.CurrentUser).(*User); ok {
+	if user, ok := ctx.Value(CurrentUser).(*User); ok {
 		return user.ID, true
 	}
 
@@ -117,7 +126,7 @@ func (e UserExtractor) GetUserID(ctx context.Context) (uint, bool) {
 }
 
 func (e UserExtractor) GetUserLogin(ctx context.Context) (string, bool) {
-	if user, ok := ctx.Value(auth.CurrentUser).(*User); ok {
+	if user, ok := ctx.Value(CurrentUser).(*User); ok {
 		return user.Login, true
 	}
 
@@ -173,10 +182,38 @@ func SetCurrentOrganizationID(ctx context.Context, orgID uint) context.Context {
 
 // BanzaiUserStorer struct
 type BanzaiUserStorer struct {
-	auth.UserStorer
-
 	db        *gorm.DB
 	orgSyncer OIDCOrganizationSyncer
+}
+
+func (BanzaiUserStorer) Get(Claims *claims.Claims, context *auth.Context) (user interface{}, err error) {
+	var tx = context.Auth.GetDB(context.Request)
+
+	if Claims.UserID != "" {
+		var currentUser User
+		if err = tx.First(&currentUser, Claims.UserID).Error; err == nil {
+			return &currentUser, nil
+		}
+		return nil, ErrInvalidAccount
+	}
+
+	var (
+		authIdentity AuthIdentity
+		authInfo     = BasicIdentity{
+			Provider: Claims.Provider,
+			UID:      Claims.ID,
+		}
+	)
+
+	if !tx.Where(authInfo).First(authIdentity).RecordNotFound() {
+		var currentUser User
+		if err = tx.First(&currentUser, authIdentity.UserID).Error; err == nil {
+			return &currentUser, nil
+		}
+		return nil, ErrInvalidAccount
+	}
+
+	return nil, ErrInvalidAccount
 }
 
 // Save differs from the default UserStorer.Save() in that it
